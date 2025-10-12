@@ -7,3 +7,4 @@ data/test/*
 !data/raw/.gitkeep
 !data/train/.gitkeep
 !data/test/.gitkeep
+!src/.gitkeep
