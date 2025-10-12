@@ -1,0 +1,9 @@
+# Ignore all contents in data subdirectories
+data/raw/*
+data/train/*
+data/test/*
+
+# But don't ignore .gitkeep files (to preserve empty folders)
+!data/raw/.gitkeep
+!data/train/.gitkeep
+!data/test/.gitkeep
