@@ -1,0 +1,20 @@
+jupyter
+ipython
+
+# Core dataset handling
+datasets
+
+# Audio processing
+librosa
+soundfile
+torchaudio
+ffmpeg
+torchcodec
+
+# Data manipulation
+numpy
+pandas
+
+# Miscellaneous
+scipy
+matplotlib

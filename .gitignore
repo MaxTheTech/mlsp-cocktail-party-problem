@@ -1,3 +1,5 @@
+**/.DS_Store
+
 # Ignore all contents in data subdirectories
 data/raw/*
 data/train/*
