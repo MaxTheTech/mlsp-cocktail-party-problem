@@ -1,6 +1,8 @@
+# ignore user-specific cache files and folders
 **/.DS_Store
+**/__pycache__/
 
-# Ignore all contents in data subdirectories (but keep folders)
+# ignore all contents in data subdirectories (but keep folders)
 data/raw/*
 !data/raw/.gitkeep
 
