@@ -3,11 +3,7 @@
 **/__pycache__/
 
 # ignore all contents in data subdirectories (but keep folders)
-data/raw/*
-!data/raw/.gitkeep
+data/*
 
-data/train/*
-!data/train/.gitkeep
-
-data/test/*
-!data/test/.gitkeep
+# ignore output figures
+output/figures/*

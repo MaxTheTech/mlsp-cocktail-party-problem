@@ -1,6 +1,6 @@
 # mlsp-cocktail-party-problem
 
-Project in Machine Learning for Signal Processing. Goal: to solve the cocktail party problem.
+Project in Machine Learning for Signal Processing. Goal: to solve the cocktail party problem for 2+ speaker mixed audio signals.
 
 
 ## Setup
@@ -35,12 +35,15 @@ make environment-update
 
 
 
-## Downloading datasets
-All downloaded datasets are saved `data/raw`.
+## Datasets
+Do not push locally saved datasets to remote repository. Git will ignore all files with `data/` subdirectory.
 
-The `.gitignore` file makes sure that all files within `data/` directory are ignored, so that no actual dataset files are pushed to the remote repository (due to large file sizes).
+### LibriMix
+Source: https://github.com/JorisCos/LibriMix?tab=readme-ov-file
 
-### Raw training datasets
+
+
+<!-- ### Raw training datasets
 Single-speaker audio datasets, that will be pre-processed into mixed multi-speaker datasets with signal origin labels for training.
 
 #### VoxCeleb2
@@ -62,11 +65,9 @@ Insert multi-speaker datasets used for testing.
 
 
 #### VoxCeleb2
-VoxCeleb2 (audio only) dataset: https://huggingface.co/datasets/acul3/voxceleb2, has 462,850 data entries totalling 119 GB (compressed)
+VoxCeleb2 (audio only) dataset: https://huggingface.co/datasets/acul3/voxceleb2, has 462,850 data entries totalling 119 GB (compressed) -->
 
 
-
-## Pre-processing datasets
 
 
 

@@ -3,16 +3,23 @@ datasets
 
 # audio processing
 soundfile
-# ffmpeg
-# torchcodec
-# torchaudio
-# librosa
 
 # data manipulation
 numpy
 pandas
+scipy
+
+# machine learning
+torch
 
 # miscellaneous
 matplotlib
+tqdm
 jupyter
 ipython
+
+# NO LONGER IN USE
+# ffmpeg
+# torchcodec
+# torchaudio
+# librosa

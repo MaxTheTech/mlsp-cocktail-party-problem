@@ -20,11 +20,11 @@ environment-delete:
 
 ### DATASETS
 # training datasets
-download-voxceleb-10k:
-	python -m src.data.load_dataset --dataset "acul3/voxceleb2" --out_name "voxceleb2_10k" --num_samples 10000
+# download-voxceleb-10k:
+# 	python -m src.data.load_dataset --dataset "acul3/voxceleb2" --out_name "voxceleb2_10k" --num_samples 10000
 
-download-voxceleb-full:
-	python -m src.data.load_dataset --dataset acul3/voxceleb2 --out_name voxceleb2_full --num_samples 0
+# download-voxceleb-full:
+# 	python -m src.data.load_dataset --dataset acul3/voxceleb2 --out_name voxceleb2_full --num_samples 0
 
 # testing datasets
 # WIP
