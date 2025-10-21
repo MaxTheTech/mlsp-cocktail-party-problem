@@ -17,17 +17,11 @@ environment-delete:
 	@echo ""
 	@echo "Environment mlsp-project deleted"
 
+clean:
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
 
 ### DATASETS
-# training datasets
-# download-voxceleb-10k:
-# 	python -m src.data.load_dataset --dataset "acul3/voxceleb2" --out_name "voxceleb2_10k" --num_samples 10000
-
-# download-voxceleb-full:
-# 	python -m src.data.load_dataset --dataset acul3/voxceleb2 --out_name voxceleb2_full --num_samples 0
-
-# testing datasets
-# WIP
 
 
 ### TRAINING
@@ -39,9 +33,10 @@ environment-delete:
 # eval:
 # 	python src/evaluate.py
 
+
 # test:
 # 	python src/test.py
 
 
 # add new commands here
-.PHONY: environment-setup environment-update environment-delete download-voxceleb-10k download-voxceleb-full train eval test
+.PHONY: environment-setup environment-update environment-delete clean

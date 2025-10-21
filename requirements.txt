@@ -1,16 +1,17 @@
 # core dataset handling
 datasets
 
+# machine learning
+torch
+
 # audio processing
 soundfile
+torchaudio
 
 # data manipulation
 numpy
 pandas
 scipy
-
-# machine learning
-torch
 
 # miscellaneous
 matplotlib
@@ -21,5 +22,4 @@ ipython
 # NO LONGER IN USE
 # ffmpeg
 # torchcodec
-# torchaudio
 # librosa

@@ -35,7 +35,7 @@ def setup_logger(name = __name__, log_file = None, level = "INFO"):
 
     # optional file handler
     if log_file:
-        log_file = Path(log_file)
+        log_file = Path(f"output/{log_file}")
         log_file.parent.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
         file_handler.setFormatter(formatter)

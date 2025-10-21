@@ -1,6 +1,6 @@
 # mlsp-cocktail-party-problem
 
-Project in Machine Learning for Signal Processing. Goal: to solve the cocktail party problem for 2+ speaker mixed audio signals.
+Project in Machine Learning for Signal Processing. Goal: to solve the cocktail party problem for 2+ speaker mixed audio signals, evaluating various simple methods (ICA, NMF, EM) and more advanced models.
 
 
 ## Setup
@@ -39,34 +39,15 @@ make environment-update
 Do not push locally saved datasets to remote repository. Git will ignore all files with `data/` subdirectory.
 
 ### LibriMix
-Source: https://github.com/JorisCos/LibriMix?tab=readme-ov-file
+Generates mixed speaker datasets from the LibriSpeech single-speaker dataset, with the generated data specifically formulated to help with training speaker separation models. Source: https://github.com/JorisCos/LibriMix?tab=readme-ov-file
 
+We are generating Libri2Mix with final size of around 30 GB, which includes both training, validation and test splits.
 
+Generation datasets: LibriSpeech dev (clean), LibriSpeech test (clean), LibriSpeech train 100 hours (clean), and WHAM for noise.
 
-<!-- ### Raw training datasets
-Single-speaker audio datasets, that will be pre-processed into mixed multi-speaker datasets with signal origin labels for training.
+Generation parameters: 2-speaker mix, 16 kHz frequency, minimum mode (mixture has same length as shortest source speaker sample), both clean (no noise) + noise mixtures (WHAM noise).
 
-#### VoxCeleb2
-VoxCeleb2 (audio only) dataset: https://huggingface.co/datasets/acul3/voxceleb2, has 462,850 data entries totalling 119 GB (compressed).
-
-- Download subset of 10k samples for development (around 2.5 GB):
-```bash
-make download-voxceleb-10k
-```
-
-- Download full VoxCeleb2 dataset (WARNING: LARGE):
-```bash
-make download-voxceleb-full
-```
-
-
-### Raw testing datasets
-Insert multi-speaker datasets used for testing.
-
-
-#### VoxCeleb2
-VoxCeleb2 (audio only) dataset: https://huggingface.co/datasets/acul3/voxceleb2, has 462,850 data entries totalling 119 GB (compressed) -->
-
+We chose these parameters to ensure a smaller and more manageable dataset size. Running the most expansive parameters would lead to a size of 430GB of data for Libri2Mix and 332GB for Libri3Mix, according to the repo source.
 
 
 

@@ -2,8 +2,16 @@
 **/.DS_Store
 **/__pycache__/
 
-# ignore all contents in data subdirectories (but keep folders)
+# ignore personal project memory file
+CLAUDE.md
+
+# ignore all contents in data subdirectories
 data/*
 
-# ignore output figures
+# ignore outputs (figures, logs, models)
 output/figures/*
+output/logs/*
+output/models/*
+
+# ignore archived (deprecated) files
+src/archive
