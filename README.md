@@ -1,6 +1,6 @@
 # mlsp-cocktail-party-problem
 
-Project in Machine Learning for Signal Processing. Goal: to solve the cocktail party problem for 2+ speaker mixed audio signals, evaluating various simple methods (ICA, NMF, EM) and more advanced models.
+Project in Machine Learning for Signal Processing. Goal: to solve the cocktail party problem for 2+ speaker mixed audio signals, evaluating various simple methods (NMF) and more advanced models.
 
 
 ## Setup

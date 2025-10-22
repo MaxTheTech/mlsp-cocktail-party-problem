@@ -32,7 +32,6 @@ from src.utils.train_utils import (
     save_training_config,
     AverageMeter,
     Timer,
-    gradient_norm,
     DebugDatasetWrapper
 )
 from src.utils.logger import setup_logger
@@ -42,25 +41,15 @@ def parse_args():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description="Template training script for source separation")
 
-    # Dataset arguments
+    # Required arguments
     parser.add_argument("--root-dir", type=str, required=True,
                         help="Root directory of LibriMix dataset (e.g., data/Libri2Mix)")
-    parser.add_argument("--sample-rate", type=str, default='16k', choices=['8k', '16k'],
-                        help="Audio sample rate ('8k' or '16k')")
-    parser.add_argument("--num-sources", type=int, default=2,
-                        help="Number of sources (2 or 3)")
+    parser.add_argument("--config", type=str, required=True,
+                        help="Path to dataset config file (YAML) containing dataset and dataloader settings")
 
     # Training arguments
     parser.add_argument("--epochs", type=int, default=50,
                         help="Number of training epochs")
-    parser.add_argument("--batch-size-train", type=int, default=16,
-                        help="Training batch size")
-    parser.add_argument("--batch-size-val", type=int, default=8,
-                        help="Validation batch size")
-    parser.add_argument("--segment-length-train", type=int, default=64000,
-                        help="Training segment length in samples (e.g., 64000 = 4s at 16kHz)")
-    parser.add_argument("--segment-length-val", type=int, default=None,
-                        help="Validation segment length (None = variable length)")
     parser.add_argument("--lr", type=float, default=1e-3,
                         help="Learning rate")
     parser.add_argument("--weight-decay", type=float, default=1e-5,
@@ -93,14 +82,6 @@ def parse_args():
     parser.add_argument("--save-every", type=int, default=5,
                         help="Save checkpoint every N epochs")
 
-    # Performance arguments
-    parser.add_argument("--preload-to-ram", action="store_true",
-                        help="Preload entire dataset to RAM (faster but memory intensive)")
-    parser.add_argument("--cache-size", type=int, default=0,
-                        help="LRU cache size for audio files (0 = disabled)")
-    parser.add_argument("--num-workers", type=int, default=None,
-                        help="Number of dataloader workers (auto-detect if not specified)")
-
     # Debug arguments
     parser.add_argument("--debug", action="store_true",
                         help="Enable debug mode (implies --subset-size 100 if not set)")
@@ -131,26 +112,16 @@ def parse_args():
 
 
 def create_dataloaders(args):
-    """Create train/val/test dataloaders."""
+    """Create train/val/test dataloaders from config."""
     logger = setup_logger(__name__, log_file=args.log_file)
 
     logger.info(f"Loading LibriMix dataset from {args.root_dir}")
+    logger.info(f"Loading dataset config from {args.config}")
 
-    # Create dataloaders with GPU/MPS optimization
+    # Create dataloaders from config file
     train_loader, val_loader, test_loader = create_train_val_test_loaders(
         root_dir=args.root_dir,
-        sample_rate=args.sample_rate,
-        n_src=args.num_sources,
-        batch_size_train=args.batch_size_train,
-        batch_size_val=args.batch_size_val,
-        batch_size_test=args.batch_size_val,
-        segment_length_train=args.segment_length_train,
-        segment_length_val=args.segment_length_val,
-        segment_length_test=args.segment_length_val,
-        mixture_type='mix_clean',
-        num_workers=args.num_workers,
-        preload_to_ram=args.preload_to_ram,
-        cache_size=args.cache_size,
+        config_path=args.config,
     )
 
     # Apply debug wrapper if needed
@@ -194,10 +165,13 @@ def create_dataloaders(args):
     return train_loader, val_loader, test_loader
 
 
-def create_model(args):
+def create_model(args, train_loader):
     """Create model instance."""
+    # Get num_sources from dataset
+    num_sources = train_loader.dataset.n_src
+
     model = SimpleSourceSeparationModel(
-        num_sources=args.num_sources,
+        num_sources=num_sources,
         encoder_channels=args.encoder_channels,
         hidden_channels=args.hidden_channels,
         num_layers=args.num_layers
@@ -410,7 +384,7 @@ def main():
     train_loader, val_loader, test_loader = create_dataloaders(args)
 
     # Create model
-    model = create_model(args)
+    model = create_model(args, train_loader)
 
     # Setup device
     if args.device:

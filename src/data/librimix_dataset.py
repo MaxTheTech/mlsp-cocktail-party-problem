@@ -1,49 +1,74 @@
 import os
+import yaml
 from pathlib import Path
 import pandas as pd
 import soundfile as sf
 import torch
 from torch.utils.data import Dataset
-from functools import lru_cache
-import numpy as np
 
 
 class LibriMixDataset(Dataset):
-    """Dataset for LibriMix - loads mixed audio and clean sources"""
+    """Dataset for LibriMix - loads mixed audio and clean sources from config"""
 
-    def __init__(self, root_dir, split='train', sample_rate='16k', n_src=2,
-                 mode='min', mixture_type='mix_clean', segment_length=None,
-                 return_speaker_info=False, return_metrics=False,
-                 preload_to_ram=False, cache_size=0):
-
+    def __init__(self, root_dir, config_path, split='train'):
+        """
+        Args:
+            root_dir: Path to LibriMix root directory
+            config_path: Path to YAML config file with dataset settings
+            split: 'train', 'dev', or 'test'
+        """
         self.root_dir = Path(root_dir)
         self.split = split
-        self.sample_rate = sample_rate
-        self.n_src = n_src
-        self.mode = mode
-        self.mixture_type = mixture_type
-        self.segment_length = segment_length
-        self.return_speaker_info = return_speaker_info
-        self.return_metrics = return_metrics
-        self.preload_to_ram = preload_to_ram
-        self.cache_size = cache_size
 
+        # load config from YAML file
+        config_path = Path(config_path)
+        if not config_path.exists():
+            raise FileNotFoundError(f"Config file not found: {config_path}")
+
+        with open(config_path) as f:
+            full_config = yaml.safe_load(f)
+
+        if 'dataset' not in full_config:
+            raise ValueError("Config file must have 'dataset' section")
+
+        config = full_config['dataset']
+
+        # extract dataset parameters from config
+        self.sample_rate = config['sample_rate']
+        self.n_src = config['n_src']
+        self.mode = config['mode']
+        self.mixture_type = config['mixture_type']
+        self.return_speaker_info = config.get('return_speaker_info', False)
+        self.return_metrics = config.get('return_metrics', False)
+        self.preload_to_ram = config.get('preload_to_ram', False)
+
+        # get segment length based on split
+        if split == 'train':
+            self.segment_length = config['segment_length_train']
+        elif split == 'dev':
+            self.segment_length = config['segment_length_val']
+        elif split == 'test':
+            self.segment_length = config['segment_length_test']
+        else:
+            raise ValueError(f"Invalid split: {split}")
+
+        # validate config values
         assert split in ['train', 'dev', 'test']
-        assert sample_rate in ['8k', '16k']
-        assert n_src in [2, 3]
+        assert self.sample_rate in ['8k', '16k']
+        assert self.n_src in [2, 3]
 
         # convert sample rate to Hz
-        self.fs = int(sample_rate.replace('k', '')) * 1000
+        self.fs = int(self.sample_rate.replace('k', '')) * 1000
 
         # figure out split directory name
         split_names = {'train': 'train-100', 'dev': 'dev', 'test': 'test'}
         self.split_dir = split_names[split]
 
         # build path to wav files
-        self.wav_dir = self.root_dir / f'wav{sample_rate}' / mode
+        self.wav_dir = self.root_dir / f'wav{self.sample_rate}' / self.mode
 
         # load metadata CSV
-        metadata_file = f'mixture_{self.split_dir}_{mixture_type}.csv'
+        metadata_file = f'mixture_{self.split_dir}_{self.mixture_type}.csv'
         self.metadata_path = self.wav_dir / 'metadata' / metadata_file
 
         if not self.metadata_path.exists():
@@ -51,38 +76,34 @@ class LibriMixDataset(Dataset):
 
         self.metadata = pd.read_csv(self.metadata_path)
 
-        # precompute and cache normalized paths for efficiency
+        # precompute and cache normalized CSV paths for efficiency
         self._cache_normalized_paths()
+
+        # validate sample rate on first load
+        self._validate_sample_rate()
 
         # optionally load SNR metrics
         self.metrics_df = None
-        if return_metrics:
-            metrics_file = f'metrics_{self.split_dir}_{mixture_type}.csv'
+        if self.return_metrics:
+            metrics_file = f'metrics_{self.split_dir}_{self.mixture_type}.csv'
             metrics_path = self.wav_dir / 'metadata' / metrics_file
             if metrics_path.exists():
                 self.metrics_df = pd.read_csv(metrics_path)
 
         # optionally load speaker info
         self.speaker_lookup = {}
-        if return_speaker_info:
+        if self.return_speaker_info:
             self._load_speaker_metadata()
 
-        # setup caching
+        # setup RAM cache
         self.ram_cache = {}
-
-        # note: LRU cache disabled for now due to multiprocessing pickling issues
-        # caching is better achieved with RAM preloading for small datasets
-        # or OS page cache for larger datasets
-        if self.cache_size > 0:
-            print(f"warning: LRU cache not yet supported with multiprocessing workers")
-            print(f"         use --preload-to-ram instead for small datasets")
 
         # preload all data to RAM if requested
         if self.preload_to_ram:
             self._preload_dataset_to_ram()
 
     def _cache_normalized_paths(self):
-        """precompute normalized paths for all samples to avoid repeated computation"""
+        """Precompute normalized CSV paths for all samples to avoid repeated computation"""
         self.cached_paths = []
 
         for idx in range(len(self.metadata)):
@@ -120,7 +141,7 @@ class LibriMixDataset(Dataset):
         if os.path.isabs(stored_path) and os.path.exists(stored_path):
             return Path(stored_path)
 
-        # Remove Libri2Mix/Libri3Mix prefix if present
+        # remove Libri2Mix/Libri3Mix prefix if present
         for prefix in ['Libri2Mix/', 'Libri3Mix/']:
             if prefix in stored_path:
                 stored_path = stored_path.split(prefix, 1)[1]
@@ -128,20 +149,32 @@ class LibriMixDataset(Dataset):
 
         return self.root_dir / stored_path
 
+    def _validate_sample_rate(self):
+        """Validate that first file has correct sample rate"""
+        if len(self.cached_paths) == 0:
+            return
+
+        first_file = self.cached_paths[0]['mixture']
+        with sf.SoundFile(str(first_file)) as f:
+            actual_sr = f.samplerate
+            if actual_sr != self.fs:
+                raise ValueError(
+                    f"Sample rate mismatch: expected {self.fs} Hz but got {actual_sr} Hz. "
+                    f"Check your dataset configuration (sample_rate='{self.sample_rate}')"
+                )
+
     def _load_audio_segment_impl(self, path, start_frame=None, num_frames=None):
         """
-        load audio file with optional seeking for efficient segment loading
-        this is the actual implementation that may be wrapped with LRU cache
+        Load audio file with optional seeking for efficient segment loading
 
         args:
-            path: path to audio file (must be hashable for caching)
+            path: path to audio file
             start_frame: starting frame (None = start from beginning)
             num_frames: number of frames to read (None = read all)
 
         returns:
             audio data as torch tensor
         """
-        # convert to string to ensure hashability for lru_cache
         path_str = str(path)
 
         with sf.SoundFile(path_str) as f:
@@ -157,7 +190,7 @@ class LibriMixDataset(Dataset):
 
     def _load_audio_segment(self, path, start_frame=None, num_frames=None):
         """
-        load audio segment, checking RAM cache if preload is enabled
+        Load audio segment, checking RAM cache if preload is enabled
         """
         # check if entire file is preloaded to RAM
         if self.preload_to_ram:
@@ -203,7 +236,7 @@ class LibriMixDataset(Dataset):
         current_length = mixture.shape[-1]
 
         if current_length < self.segment_length:
-            # Pad if too short
+            # pad if too short
             pad_amount = self.segment_length - current_length
             mixture = torch.nn.functional.pad(mixture, (0, pad_amount))
             sources = torch.nn.functional.pad(sources, (0, pad_amount))
@@ -243,12 +276,6 @@ class LibriMixDataset(Dataset):
 
         # load mixed audio (using cached path)
         mixture = self._load_audio_segment(paths['mixture'], start_frame, num_frames)
-
-        # validate sample rate on first load (skip for efficiency on subsequent loads)
-        if not hasattr(self, '_validated_sr'):
-            with sf.SoundFile(str(paths['mixture'])) as f:
-                assert f.samplerate == self.fs, f"Sample rate mismatch!"
-            self._validated_sr = True
 
         # load clean sources (using cached paths)
         sources = []

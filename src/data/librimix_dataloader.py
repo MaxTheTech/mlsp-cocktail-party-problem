@@ -1,59 +1,66 @@
 """DataLoader utilities for LibriMix dataset"""
 
 import os
+import yaml
 import torch
 from torch.utils.data import DataLoader
+from pathlib import Path
+from typing import Optional, Tuple
 from src.data.librimix_dataset import LibriMixDataset, collate_fn_librimix
 
 
-def create_librimix_dataloader(root_dir, split='train', batch_size=8,
-                                sample_rate='16k', n_src=2, mode='min',
-                                mixture_type='mix_clean', segment_length=None,
-                                num_workers=None, shuffle=None,
-                                return_speaker_info=False, return_metrics=False,
-                                preload_to_ram=False, cache_size=0):
+def create_librimix_dataloader(root_dir, config_path, split='train'):
     """
-    Create DataLoader for LibriMix dataset with auto-configured settings
+    Create DataLoader for LibriMix dataset from config file
 
     Args:
         root_dir: Path to LibriMix root (e.g., 'data/Libri2Mix')
+        config_path: Path to YAML config file (contains dataset and dataloader settings)
         split: 'train', 'dev', or 'test'
-        batch_size: Batch size
-        sample_rate: '8k' or '16k'
-        n_src: Number of sources (2 or 3)
-        mode: 'min' or 'max'
-        mixture_type: 'mix_clean', 'mix_both', or 'mix_single'
-        segment_length: Fixed segment length in samples (None for variable)
-        num_workers: Number of workers (auto-configured if None)
-        shuffle: Shuffle data (auto: True for train, False otherwise)
-        return_speaker_info: Include speaker IDs and genders
-        return_metrics: Include SNR metrics
+
+    Returns:
+        DataLoader configured with settings from config file
     """
 
-    # create dataset
+    # load config from YAML file
+    config_path = Path(config_path)
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+
+    with open(config_path) as f:
+        full_config = yaml.safe_load(f)
+
+    # extract dataset and dataloader sections
+    if 'dataset' not in full_config:
+        raise ValueError("Config file must have 'dataset' section")
+    if 'dataloader' not in full_config:
+        raise ValueError("Config file must have 'dataloader' section")
+
+    dataset_config = full_config['dataset']
+    dataloader_config = full_config['dataloader']
+
+    # Extract dataloader parameters
+    batch_sizes = {'train': dataloader_config['batch_size_train'],
+                   'dev': dataloader_config['batch_size_val'],
+                   'test': dataloader_config['batch_size_test']}
+    batch_size = batch_sizes[split]
+
+    num_workers = dataloader_config.get('num_workers', None)
+    shuffle = (split == 'train')
+
+    # Create dataset (dataset loads config internally)
     dataset = LibriMixDataset(
         root_dir=root_dir,
+        config_path=config_path,
         split=split,
-        sample_rate=sample_rate,
-        n_src=n_src,
-        mode=mode,
-        mixture_type=mixture_type,
-        segment_length=segment_length,
-        return_speaker_info=return_speaker_info,
-        return_metrics=return_metrics,
-        preload_to_ram=preload_to_ram,
-        cache_size=cache_size,
     )
 
-    # auto-configure settings
-    if shuffle is None:
-        shuffle = (split == 'train')
-
+    # auto-configure num_workers if not specified
     if num_workers is None:
         # increase worker count for I/O-bound audio loading
         # use more workers since audio loading is disk-bound, not CPU-bound
         cpu_count = os.cpu_count() or 1
-        num_workers = min(cpu_count, 8)  # increased from 4 to 8
+        num_workers = min(cpu_count, 8)
 
     # check if GPU/MPS available for pin_memory
     has_gpu = torch.cuda.is_available() or torch.backends.mps.is_available()
@@ -75,66 +82,20 @@ def create_librimix_dataloader(root_dir, split='train', batch_size=8,
     return dataloader
 
 
-def create_train_val_test_loaders(root_dir, batch_size_train=16,
-                                   batch_size_val=8, batch_size_test=8,
-                                   sample_rate='16k', n_src=2, mode='min',
-                                   mixture_type='mix_clean',
-                                   segment_length_train=64000,  # 4s at 16kHz
-                                   segment_length_val=None,
-                                   segment_length_test=None,
-                                   num_workers=None,
-                                   return_speaker_info=False,
-                                   return_metrics=False,
-                                   preload_to_ram=False,
-                                   cache_size=0):
-    """Create train, val, and test dataloaders"""
+def create_train_val_test_loaders(root_dir, config_path) -> Tuple:
+    """
+    Create train, val, and test dataloaders from config file
 
-    train_loader = create_librimix_dataloader(
-        root_dir=root_dir,
-        split='train',
-        batch_size=batch_size_train,
-        sample_rate=sample_rate,
-        n_src=n_src,
-        mode=mode,
-        mixture_type=mixture_type,
-        segment_length=segment_length_train,
-        num_workers=num_workers,
-        return_speaker_info=return_speaker_info,
-        return_metrics=return_metrics,
-        preload_to_ram=preload_to_ram,
-        cache_size=cache_size,
-    )
+    Args:
+        root_dir: Path to LibriMix root (e.g., 'data/Libri2Mix')
+        config_path: Path to YAML config file (required)
 
-    val_loader = create_librimix_dataloader(
-        root_dir=root_dir,
-        split='dev',
-        batch_size=batch_size_val,
-        sample_rate=sample_rate,
-        n_src=n_src,
-        mode=mode,
-        mixture_type=mixture_type,
-        segment_length=segment_length_val,
-        num_workers=num_workers,
-        return_speaker_info=return_speaker_info,
-        return_metrics=return_metrics,
-        preload_to_ram=preload_to_ram,
-        cache_size=cache_size,
-    )
+    Returns:
+        Tuple of (train_loader, val_loader, test_loader)
+    """
 
-    test_loader = create_librimix_dataloader(
-        root_dir=root_dir,
-        split='test',
-        batch_size=batch_size_test,
-        sample_rate=sample_rate,
-        n_src=n_src,
-        mode=mode,
-        mixture_type=mixture_type,
-        segment_length=segment_length_test,
-        num_workers=num_workers,
-        return_speaker_info=return_speaker_info,
-        return_metrics=return_metrics,
-        preload_to_ram=preload_to_ram,
-        cache_size=cache_size,
-    )
+    train_loader = create_librimix_dataloader(root_dir, config_path, split='train')
+    val_loader = create_librimix_dataloader(root_dir, config_path, split='dev')
+    test_loader = create_librimix_dataloader(root_dir, config_path, split='test')
 
     return train_loader, val_loader, test_loader

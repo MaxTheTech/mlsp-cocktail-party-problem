@@ -18,6 +18,7 @@ matplotlib
 tqdm
 jupyter
 ipython
+pyyaml
 
 # NO LONGER IN USE
 # ffmpeg

@@ -1,0 +1,19 @@
+# LibriMix configuration: 16kHz, 2 sources
+
+dataset:
+  sample_rate: 16k  # CONSTANT - SET DURING LIBRIMIX GENERATION
+  n_src: 2          # CONSTANT - SET DURING LIBRIMIX GENERATION
+  mode: min         # CONSTANT - SET DURING LIBRIMIX GENERATION
+  mixture_type: mix_clean     # Variable: mix_clean or mix_both
+  segment_length_train: 64000 # null or variable length - set to frequency * sample length in seconds (for example 16000 Hz * 4 seconds = 64000)
+  segment_length_val: null    # null or variable length
+  segment_length_test: null   # null or variable length
+  return_speaker_info: false  # true/false - load mixture SNR metrics
+  return_metrics: false       # true/false - load source gender attributes
+  preload_to_ram: false       # true/false - pre-load entire dataset into memory, only works for smaller subsets
+
+dataloader:
+  batch_size_train: 16
+  batch_size_val: 8
+  batch_size_test: 8
+  num_workers: null  # null = auto-detect based on CPU count

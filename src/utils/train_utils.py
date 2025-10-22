@@ -9,24 +9,19 @@ import time
 import numpy as np
 
 
-def get_device():
-    """Get best available device (CUDA > MPS > CPU)"""
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-        print(f"Using CUDA: {torch.cuda.get_device_name(0)}")
-    elif torch.backends.mps.is_available():
-        device = torch.device("mps")
-        print("Using MPS (Apple Silicon)")
-    else:
-        device = torch.device("cpu")
-        print("Using CPU")
-    return device
-
-
 def setup_training_device(model, device=None):
     """Move model to device and enable optimizations"""
     if device is None:
-        device = get_device()
+        # auto-detect best available device
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+            print(f"Using CUDA: {torch.cuda.get_device_name(0)}")
+        elif torch.backends.mps.is_available():
+            device = torch.device("mps")
+            print("Using MPS (Apple Silicon)")
+        else:
+            device = torch.device("cpu")
+            print("Using CPU")
 
     model = model.to(device)
 
@@ -95,7 +90,7 @@ class Timer:
     """Simple timer for profiling"""
 
     def __init__(self):
-        self.times = []
+        self.times = []  # list of measurements for detailed analysis
         self.start_time = None
 
     def start(self):
@@ -130,7 +125,13 @@ def save_checkpoint(state, save_dir, filename="checkpoint.pth", is_best=False):
 def load_checkpoint(checkpoint_path, model, optimizer=None, device=None):
     """Load model checkpoint"""
     if device is None:
-        device = get_device()
+        # auto-detect best available device
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+        elif torch.backends.mps.is_available():
+            device = torch.device("mps")
+        else:
+            device = torch.device("cpu")
 
     checkpoint = torch.load(checkpoint_path, map_location=device)
 
@@ -178,14 +179,3 @@ def save_training_config(config, save_dir):
         json.dump(serializable, f, indent=2)
 
     print(f"Saved config to {config_path}")
-
-
-def gradient_norm(model):
-    """Compute total gradient norm for debugging"""
-    total_norm = 0.0
-    for p in model.parameters():
-        if p.grad is not None:
-            param_norm = p.grad.data.norm(2)
-            total_norm += param_norm.item() ** 2
-    total_norm = total_norm ** 0.5
-    return total_norm
