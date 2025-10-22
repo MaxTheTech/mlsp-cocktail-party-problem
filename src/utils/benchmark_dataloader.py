@@ -3,12 +3,17 @@
 benchmark script for LibriMix dataloader performance
 
 usage:
-    python -m src.utils.benchmark_dataloader --root-dir data/Libri2Mix --num-batches 50
+    python -m src.utils.benchmark_dataloader \
+        --root-dir data/Libri2Mix \
+        --config config/libri2mix_16k_2src.yaml \
+        --num-batches 50
 """
 
 import argparse
 import time
+import tempfile
 import torch
+import yaml
 import matplotlib.pyplot as plt
 from pathlib import Path
 import json
@@ -70,41 +75,39 @@ def benchmark_dataloader(dataloader, num_batches=50, warmup_batches=5, device='c
     }
 
 
-def run_benchmark_suite(root_dir, num_batches=50, batch_size=16, split='train'):
-    """run comprehensive benchmark comparing different configurations"""
+def run_benchmark_suite(root_dir, config_path, num_batches=50, split='train'):
+    """
+    run comprehensive benchmark comparing different worker configurations
+
+    all other settings (batch size, segment length, etc.) are loaded from config file
+    """
     logger = setup_logger(__name__)
 
     logger.info("="*80)
     logger.info("dataloader performance benchmark")
     logger.info("="*80)
+    logger.info(f"config file: {config_path}")
 
     device = 'cuda' if torch.cuda.is_available() else ('mps' if torch.backends.mps.is_available() else 'cpu')
     logger.info(f"using device: {device}")
 
     results = {}
 
-    # configuration matrix
+    # configuration matrix - test different worker counts
+    # all other params (batch size, segment length) come from config file
     configs = [
         {
             'name': 'baseline (4 workers)',
             'num_workers': 4,
-            'preload_to_ram': False,
-            'cache_size': 0,
         },
         {
             'name': 'optimized (8 workers)',
             'num_workers': 8,
-            'preload_to_ram': False,
-            'cache_size': 0,
         },
-        # note: LRU cache disabled due to multiprocessing pickling issues
-        # note: preload_to_ram commented out as it requires significant RAM (~28GB for Libri2Mix)
-        # {
-        #     'name': 'preloaded to RAM (8 workers)',
-        #     'num_workers': 8,
-        #     'preload_to_ram': True,
-        #     'cache_size': 0,
-        # },
+        {
+            'name': 'auto-detect workers',
+            'num_workers': None,  # will auto-configure in dataloader
+        },
     ]
 
     for config in configs:
@@ -112,28 +115,45 @@ def run_benchmark_suite(root_dir, num_batches=50, batch_size=16, split='train'):
         logger.info(f"testing: {config['name']}")
         logger.info(f"{'='*80}")
 
-        # create dataloader
-        dataloader = create_librimix_dataloader(
-            root_dir=root_dir,
-            split=split,
-            batch_size=batch_size,
-            segment_length=64000,  # 4s at 16kHz
-            num_workers=config['num_workers'],
-            preload_to_ram=config['preload_to_ram'],
-            cache_size=config['cache_size'],
-        )
+        # temporarily override num_workers in config if specified
+        # by reading config, modifying, and passing back
+        config_file = Path(config_path)
+        with open(config_file) as f:
+            full_config = yaml.safe_load(f)
 
-        # run benchmark
-        logger.info(f"benchmarking {num_batches} batches...")
-        stats = benchmark_dataloader(dataloader, num_batches=num_batches, device=device)
+        if config['num_workers'] is not None:
+            full_config['dataloader']['num_workers'] = config['num_workers']
+            logger.info(f"num_workers: {config['num_workers']}")
+        else:
+            logger.info(f"num_workers: auto-detect")
 
-        # log results
-        logger.info(f"total time: {stats['total_time']:.2f}s")
-        logger.info(f"avg batch time: {stats['avg_batch_time']*1000:.1f}ms")
-        logger.info(f"throughput: {stats['samples_per_sec']:.1f} samples/sec")
-        logger.info(f"min/max batch time: {stats['min_batch_time']*1000:.1f}ms / {stats['max_batch_time']*1000:.1f}ms")
+        # create temporary config file with modified settings
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as tmp:
+            yaml.dump(full_config, tmp)
+            tmp_config_path = tmp.name
 
-        results[config['name']] = stats
+        try:
+            # create dataloader from modified config
+            dataloader = create_librimix_dataloader(
+                root_dir=root_dir,
+                config_path=tmp_config_path,
+                split=split,
+            )
+
+            # run benchmark
+            logger.info(f"benchmarking {num_batches} batches...")
+            stats = benchmark_dataloader(dataloader, num_batches=num_batches, device=device)
+
+            # log results
+            logger.info(f"total time: {stats['total_time']:.2f}s")
+            logger.info(f"avg batch time: {stats['avg_batch_time']*1000:.1f}ms")
+            logger.info(f"throughput: {stats['samples_per_sec']:.1f} samples/sec")
+            logger.info(f"min/max batch time: {stats['min_batch_time']*1000:.1f}ms / {stats['max_batch_time']*1000:.1f}ms")
+
+            results[config['name']] = stats
+        finally:
+            # cleanup temp file
+            Path(tmp_config_path).unlink()
 
     return results
 
@@ -212,13 +232,13 @@ def main():
     parser = argparse.ArgumentParser(description="benchmark LibriMix dataloader performance")
 
     parser.add_argument('--root-dir', type=str, required=True,
-                        help="root directory of LibriMix dataset")
+                        help="root directory of LibriMix dataset (e.g., data/Libri2Mix)")
+    parser.add_argument('--config', type=str, required=True,
+                        help="path to dataset config file (YAML)")
     parser.add_argument('--num-batches', type=int, default=50,
                         help="number of batches to benchmark")
-    parser.add_argument('--batch-size', type=int, default=16,
-                        help="batch size for benchmarking")
     parser.add_argument('--split', type=str, default='train', choices=['train', 'dev', 'test'],
-                        help="dataset split to use")
+                        help="dataset split to benchmark")
     parser.add_argument('--save-plot', type=str, default='output/figures/dataloader_benchmark.png',
                         help="path to save benchmark plot")
     parser.add_argument('--save-json', type=str, default='output/logs/dataloader_benchmark.json',
@@ -229,8 +249,8 @@ def main():
     # run benchmark suite
     results = run_benchmark_suite(
         root_dir=args.root_dir,
+        config_path=args.config,
         num_batches=args.num_batches,
-        batch_size=args.batch_size,
         split=args.split
     )
 
