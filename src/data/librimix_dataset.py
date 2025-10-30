@@ -10,45 +10,42 @@ from torch.utils.data import Dataset
 class LibriMixDataset(Dataset):
     """Dataset for LibriMix - loads mixed audio and clean sources from config"""
 
-    def __init__(self, root_dir, config_path, split='train'):
+    def __init__(self, root_dir_data, config_path_data, split='train'):
         """
         Args:
-            root_dir: Path to LibriMix root directory
-            config_path: Path to YAML config file with dataset settings
+            root_dir_data: Path to LibriMix root (e.g., 'data/Libri2Mix')
+            config_path_data: Path to YAML config file (contains dataset and dataloader settings)
             split: 'train', 'dev', or 'test'
         """
-        self.root_dir = Path(root_dir)
+        self.root_dir_data = Path(root_dir_data)
         self.split = split
 
         # load config from YAML file
-        config_path = Path(config_path)
-        if not config_path.exists():
-            raise FileNotFoundError(f"Config file not found: {config_path}")
+        config_path_data = Path(config_path_data)
+        if not config_path_data.exists():
+            raise FileNotFoundError(f"Config file not found: {config_path_data}")
 
-        with open(config_path) as f:
+        with open(config_path_data) as f:
             full_config = yaml.safe_load(f)
 
-        if 'dataset' not in full_config:
-            raise ValueError("Config file must have 'dataset' section")
-
-        config = full_config['dataset']
+        dataset_config = full_config['dataset']
 
         # extract dataset parameters from config
-        self.sample_rate = config['sample_rate']
-        self.n_src = config['n_src']
-        self.mode = config['mode']
-        self.mixture_type = config['mixture_type']
-        self.return_speaker_info = config.get('return_speaker_info', False)
-        self.return_metrics = config.get('return_metrics', False)
-        self.preload_to_ram = config.get('preload_to_ram', False)
+        self.sample_rate = dataset_config['sample_rate']
+        self.n_src = dataset_config['n_src']
+        self.mode = dataset_config['mode']
+        self.mixture_type = dataset_config['mixture_type']
+        self.return_speaker_info = dataset_config.get('return_speaker_info', False)
+        self.return_metrics = dataset_config.get('return_metrics', False)
+        self.preload_to_ram = dataset_config.get('preload_to_ram', False)
 
         # get segment length based on split
         if split == 'train':
-            self.segment_length = config['segment_length_train']
+            self.segment_length = dataset_config['segment_length_train']
         elif split == 'dev':
-            self.segment_length = config['segment_length_val']
+            self.segment_length = dataset_config['segment_length_val']
         elif split == 'test':
-            self.segment_length = config['segment_length_test']
+            self.segment_length = dataset_config['segment_length_test']
         else:
             raise ValueError(f"Invalid split: {split}")
 
@@ -65,7 +62,7 @@ class LibriMixDataset(Dataset):
         self.split_dir = split_names[split]
 
         # build path to wav files
-        self.wav_dir = self.root_dir / f'wav{self.sample_rate}' / self.mode
+        self.wav_dir = self.root_dir_data / f'wav{self.sample_rate}' / self.mode
 
         # load metadata CSV
         metadata_file = f'mixture_{self.split_dir}_{self.mixture_type}.csv'
@@ -147,7 +144,7 @@ class LibriMixDataset(Dataset):
                 stored_path = stored_path.split(prefix, 1)[1]
                 break
 
-        return self.root_dir / stored_path
+        return self.root_dir_data / stored_path
 
     def _validate_sample_rate(self):
         """Validate that first file has correct sample rate"""

@@ -6,10 +6,7 @@ Project in Machine Learning for Signal Processing. Goal: to solve the cocktail p
 ## Setup
 The `Makefile` in the project root contains various commands that simplify environment setup, dataset downloads, and running experiments. These can be run in a terminal using `make <command>` (inspect `Makefile`) from the project ROOT. This way everyone on the team can run the exact same commands with the correct arguments, reducing errors and ensuring consistency.
 
-Any python script can also be run directly from a terminal using `python src/<script name>.py <arguments>` from the project ROOT with the appropriate arguments. This allows more specific arguments than the `Makefile` commands, and so is useful during development. An example would be
-```bash
-python -m src.data.load_dataset --dataset "acul3/voxceleb2" --out_name "voxceleb_subset --num_samples 50000 --split train
-```
+Any python script can also be run directly from a terminal using `python src/<script name>.py <arguments>` from the project ROOT with the appropriate arguments. This allows more specific arguments than the `Makefile` commands, and so is useful during development.
 
 Use whichever you're more comfortable with.
 

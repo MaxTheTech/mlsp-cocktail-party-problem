@@ -5,8 +5,9 @@ datasets
 torch
 
 # audio processing
-soundfile
 torchaudio
+soundfile
+librosa
 
 # data manipulation
 numpy
@@ -19,8 +20,9 @@ tqdm
 jupyter
 ipython
 pyyaml
+mir-eval
+museval
 
 # NO LONGER IN USE
 # ffmpeg
 # torchcodec
-# librosa

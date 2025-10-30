@@ -25,18 +25,19 @@ clean:
 
 
 ### TRAINING
-# train:
-# 	python src/train.py
+
 
 
 ### EVALUATION AND TESTING
-# eval:
-# 	python src/evaluate.py
+eval-oracle-irm-dev:
+	python -m src.evaluate.eval_oracle_irm --root-dir-data data/Libri2Mix --config-data config/libri2mix_16k_2src.yaml --split dev
+
+eval-oracle-irm-test:
+	python -m src.evaluate.eval_oracle_irm --root-dir-data data/Libri2Mix --config-data config/libri2mix_16k_2src.yaml --split test
 
 
-# test:
-# 	python src/test.py
+
 
 
 # add new commands here
-.PHONY: environment-setup environment-update environment-delete clean
+.PHONY: environment-setup environment-update environment-delete clean eval-oracle-irm-dev eval-oracle-irm-test
