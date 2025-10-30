@@ -76,3 +76,30 @@ def create_librimix_dataloader(root_dir_data, config_path_data, split='train'):
     return dataloader
 
 
+def create_train_val_test_loaders(root_dir_data, config_path_data):
+    """
+    Create train, validation, and test dataloaders from config file
+
+    Args:
+        root_dir_data: Path to LibriMix root (e.g., 'data/Libri2Mix')
+        config_path_data: Path to YAML config file
+
+    Returns:
+        tuple: (train_loader, val_loader, test_loader)
+    """
+    train_loader = create_librimix_dataloader(
+        root_dir_data=root_dir_data,
+        config_path_data=config_path_data,
+        split='train'
+    )
+    val_loader = create_librimix_dataloader(
+        root_dir_data=root_dir_data,
+        config_path_data=config_path_data,
+        split='dev'
+    )
+    test_loader = create_librimix_dataloader(
+        root_dir_data=root_dir_data,
+        config_path_data=config_path_data,
+        split='test'
+    )
+    return train_loader, val_loader, test_loader

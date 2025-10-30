@@ -1,4 +1,5 @@
 import argparse
+import os
 import json
 from pathlib import Path
 import torch
@@ -113,7 +114,7 @@ def main():
     # save results to JSON
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    results_file = output_dir / f'oracle_irm_results_{args.split}.json'
+    results_file = os.path.join(output_dir, 'metrics', f'oracle_irm_results_{args.split}.json')
 
     with open(results_file, 'w') as f:
         json.dump(results, f, indent=2)
