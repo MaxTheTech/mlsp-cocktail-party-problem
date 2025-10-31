@@ -37,7 +37,6 @@ class LibriMixDataset(Dataset):
         self.mixture_type = dataset_config['mixture_type']
         self.return_speaker_info = dataset_config.get('return_speaker_info', False)
         self.return_metrics = dataset_config.get('return_metrics', False)
-        self.preload_to_ram = dataset_config.get('preload_to_ram', False)
 
         # get segment length based on split
         if split == 'train':
@@ -91,13 +90,6 @@ class LibriMixDataset(Dataset):
         self.speaker_lookup = {}
         if self.return_speaker_info:
             self._load_speaker_metadata()
-
-        # setup RAM cache
-        self.ram_cache = {}
-
-        # preload all data to RAM if requested
-        if self.preload_to_ram:
-            self._preload_dataset_to_ram()
 
     def _cache_normalized_paths(self):
         """Precompute normalized CSV paths for all samples to avoid repeated computation"""
@@ -187,46 +179,9 @@ class LibriMixDataset(Dataset):
 
     def _load_audio_segment(self, path, start_frame=None, num_frames=None):
         """
-        Load audio segment, checking RAM cache if preload is enabled
+        Load audio segment directly from disk
         """
-        # check if entire file is preloaded to RAM
-        if self.preload_to_ram:
-            path_key = str(path)
-            if path_key in self.ram_cache:
-                audio = self.ram_cache[path_key]
-
-                # apply segmentation if needed
-                if start_frame is not None and num_frames is not None:
-                    audio = audio[start_frame:start_frame + num_frames]
-                elif start_frame is not None:
-                    audio = audio[start_frame:]
-
-                return audio
-
-        # otherwise use direct loader
         return self._load_audio_segment_impl(str(path), start_frame, num_frames)
-
-    def _preload_dataset_to_ram(self):
-        """preload all audio files to RAM for maximum speed"""
-        print(f"preloading {len(self)} samples to RAM...")
-
-        # load all unique audio files
-        unique_files = set()
-        for paths in self.cached_paths:
-            unique_files.add(str(paths['mixture']))
-            for i in range(self.n_src):
-                unique_files.add(str(paths[f'source_{i}']))
-            if 'noise' in paths:
-                unique_files.add(str(paths['noise']))
-
-        print(f"loading {len(unique_files)} unique audio files...")
-
-        for file_path in unique_files:
-            with sf.SoundFile(file_path) as f:
-                audio = f.read(dtype='float32')
-            self.ram_cache[file_path] = torch.from_numpy(audio)
-
-        print(f"preloaded {len(unique_files)} files to RAM")
 
     def _segment_audio(self, mixture, sources, noise=None):
         """Randomly crop or pad audio to fixed length"""

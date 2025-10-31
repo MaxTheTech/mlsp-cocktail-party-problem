@@ -15,6 +15,7 @@ pandas
 scipy
 
 # miscellaneous
+tensorboard
 matplotlib
 tqdm
 jupyter

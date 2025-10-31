@@ -1,58 +1,117 @@
-"""Training utilities for PyTorch models"""
-
 import torch
-import torch.nn as nn
-from torch.utils.data import Dataset, Subset
 from pathlib import Path
 import json
-import time
+from datetime import datetime
 import numpy as np
+import os
+import secrets
 
 
-def setup_training_device(model, device=None):
-    """Move model to device and enable optimizations"""
+def set_seed(logger, seed=42):
+    """Set random seeds for reproducibility"""
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    logger.debug(f"Set random seed to {seed}")
+
+
+def get_device(logger, device=None):
     if device is None:
         # auto-detect best available device
         if torch.cuda.is_available():
             device = torch.device("cuda")
-            print(f"Using CUDA: {torch.cuda.get_device_name(0)}")
+            logger.debug(f"Using CUDA: {torch.cuda.get_device_name(0)}")
         elif torch.backends.mps.is_available():
             device = torch.device("mps")
-            print("Using MPS (Apple Silicon)")
+            logger.debug("Using MPS (Apple Silicon)")
         else:
             device = torch.device("cpu")
-            print("Using CPU")
+            logger.debug("Using CPU")
+    else:
+        device = torch.device(device)
 
+    return device
+
+
+def set_training_device(logger, model, device=None):
+    """Move model to device"""
+    device = get_device(logger, device)
     model = model.to(device)
-
-    # Enable cuDNN benchmarking for faster training
-    if device.type == "cuda":
-        torch.backends.cudnn.benchmark = True
+    logger.info(f"Set model device to: {device}")
 
     return model, device
 
 
-class DebugDatasetWrapper(Dataset):
-    """Wrapper to use a small subset for debugging"""
+def generate_unique_model_id(logger, model_type, save_dir):
+    """Generates unique ID for training run"""
+    date = datetime.now().strftime("%Y%m%d")
+    short_hash = secrets.token_hex(3) # 6 character hex
+    run_id = f"{model_type}_{date}_{short_hash}"
+    model_dir = os.path.join(save_dir, run_id)
+    logger.info(f"Run ID: {run_id}")
+    logger.info(f"Saving to: {model_dir}")
+    return model_dir, run_id
 
-    def __init__(self, dataset, subset_size=None, seed=42):
-        self.dataset = dataset
 
-        if subset_size is not None and subset_size < len(dataset):
-            rng = np.random.RandomState(seed)
-            indices = rng.choice(len(dataset), size=subset_size, replace=False)
-            indices = sorted(indices.tolist())
-            self.subset = Subset(dataset, indices)
-            print(f"Debug mode: using {subset_size}/{len(dataset)} samples")
+def save_training_config(logger, config, save_dir):
+    """Save training config to JSON"""
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    config_path = save_dir / "config.json"
+
+    # convert non-serializable objects to strings
+    serializable = {}
+    for key, value in config.items():
+        if isinstance(value, (int, float, str, bool, list, dict, type(None))):
+            serializable[key] = value
         else:
-            self.subset = dataset
-            print(f"Using full dataset: {len(dataset)} samples")
+            serializable[key] = str(value)
 
-    def __len__(self):
-        return len(self.subset)
+    with open(config_path, 'w') as f:
+        json.dump(serializable, f, indent=2)
 
-    def __getitem__(self, idx):
-        return self.subset[idx]
+    logger.debug(f"Saved training config to {config_path}")
+
+
+def count_parameters(model):
+    """Count trainable parameters in model"""
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+def save_checkpoint(logger, state, save_dir, filename="checkpoint.pth", is_best=False):
+    """Save model checkpoint"""
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    checkpoint_path = save_dir / filename
+    torch.save(state, checkpoint_path)
+
+    if is_best:
+        best_path = save_dir / "best_model.pth"
+        torch.save(state, best_path)
+        logger.debug(f"Saved best model to {best_path}")
+
+
+def load_checkpoint(logger, checkpoint_path, model, optimizer=None, device=None):
+    """Load model checkpoint"""
+    device = get_device(logger, device)
+
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    model.load_state_dict(checkpoint['model_state_dict'])
+
+    if optimizer is not None and 'optimizer_state_dict' in checkpoint:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+    logger.debug(f"Loaded checkpoint from {checkpoint_path}")
+    logger.debug(f"  Epoch: {checkpoint.get('epoch', 'unknown')}")
+    
+    metric_value = checkpoint['best_si_snr']
+    logger.debug(f"  Best SI-SNR: {metric_value:.4f} dB")
+
+    start_epoch = checkpoint.get("epoch", 1) + 1
+
+    return checkpoint, start_epoch, metric_value
 
 
 class AverageMeter:
@@ -85,97 +144,3 @@ class AverageMeter:
     def __str__(self):
         return f"{self.name}: {self.avg:.4f}"
 
-
-class Timer:
-    """Simple timer for profiling"""
-
-    def __init__(self):
-        self.times = []  # list of measurements for detailed analysis
-        self.start_time = None
-
-    def start(self):
-        self.start_time = time.time()
-
-    def stop(self):
-        elapsed = time.time() - self.start_time
-        self.times.append(elapsed)
-        return elapsed
-
-    def average(self):
-        return np.mean(self.times) if self.times else 0.0
-
-    def reset(self):
-        self.times = []
-
-
-def save_checkpoint(state, save_dir, filename="checkpoint.pth", is_best=False):
-    """Save model checkpoint"""
-    save_dir = Path(save_dir)
-    save_dir.mkdir(parents=True, exist_ok=True)
-
-    checkpoint_path = save_dir / filename
-    torch.save(state, checkpoint_path)
-
-    if is_best:
-        best_path = save_dir / "best_model.pth"
-        torch.save(state, best_path)
-        print(f"Saved best model to {best_path}")
-
-
-def load_checkpoint(checkpoint_path, model, optimizer=None, device=None):
-    """Load model checkpoint"""
-    if device is None:
-        # auto-detect best available device
-        if torch.cuda.is_available():
-            device = torch.device("cuda")
-        elif torch.backends.mps.is_available():
-            device = torch.device("mps")
-        else:
-            device = torch.device("cpu")
-
-    checkpoint = torch.load(checkpoint_path, map_location=device)
-
-    model.load_state_dict(checkpoint['model_state_dict'])
-
-    if optimizer is not None and 'optimizer_state_dict' in checkpoint:
-        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-
-    print(f"Loaded checkpoint from {checkpoint_path}")
-    print(f"  Epoch: {checkpoint.get('epoch', 'unknown')}")
-    print(f"  Best Loss: {checkpoint.get('best_loss', 'unknown')}")
-
-    return checkpoint
-
-
-def set_seed(seed=42):
-    """Set random seeds for reproducibility"""
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    print(f"Set random seed to {seed}")
-
-
-def count_parameters(model):
-    """Count trainable parameters in model"""
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-
-def save_training_config(config, save_dir):
-    """Save training config to JSON"""
-    save_dir = Path(save_dir)
-    save_dir.mkdir(parents=True, exist_ok=True)
-
-    config_path = save_dir / "config.json"
-
-    # Convert non-serializable objects to strings
-    serializable = {}
-    for key, value in config.items():
-        if isinstance(value, (int, float, str, bool, list, dict, type(None))):
-            serializable[key] = value
-        else:
-            serializable[key] = str(value)
-
-    with open(config_path, 'w') as f:
-        json.dump(serializable, f, indent=2)
-
-    print(f"Saved config to {config_path}")

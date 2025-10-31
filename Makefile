@@ -25,7 +25,8 @@ clean:
 
 
 ### TRAINING
-
+train-bilstm:
+	python -m src.train.bilstm_train --root-dir-data data/Libri2Mix --config-data config/libri2mix_16k_2src.yaml --config-model config/bilstm.yaml
 
 
 ### EVALUATION AND TESTING
@@ -36,8 +37,5 @@ eval-oracle-irm-test:
 	python -m src.evaluate.eval_oracle_irm --root-dir-data data/Libri2Mix --config-data config/libri2mix_16k_2src.yaml --split test
 
 
-
-
-
 # add new commands here
-.PHONY: environment-setup environment-update environment-delete clean eval-oracle-irm-dev eval-oracle-irm-test
+.PHONY: environment-setup environment-update environment-delete clean eval-oracle-irm-dev eval-oracle-irm-test train-bilstm train-bilstm-debug train-bilstm-fast-dev-run eval-bilstm-dev eval-bilstm-test

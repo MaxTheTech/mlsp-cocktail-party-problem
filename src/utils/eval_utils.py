@@ -1,4 +1,6 @@
 import torch
+from itertools import permutations
+
 
 def si_snr_loss(estimated, target, eps=1e-8):
     """
@@ -27,3 +29,42 @@ def si_snr_loss(estimated, target, eps=1e-8):
     )
 
     return si_snr
+
+
+def pit_si_snr_loss(estimated, target, eps=1e-8):
+    """
+    Permutation Invariant Training (PIT) with SI-SNR loss
+    
+    Args:
+        estimated: [batch, n_src, time] - estimated sources
+        target: [batch, n_src, time] - target sources
+        eps: small constant for numerical stability
+    
+    Returns:
+        loss: [batch] - best SI-SNR for each batch sample (higher is better)
+    """
+    batch_size, n_src, _ = estimated.shape
+    
+    # get all possible permutations of source order
+    perms = list(permutations(range(n_src)))
+    
+    # gompute SI-SNR for each permutation
+    losses = []
+    for perm in perms:
+        # reorder target according to this permutation
+        target_perm = target[:, perm, :]
+        
+        # compute SI-SNR for this permutation: [batch, n_src]
+        si_snr = si_snr_loss(estimated, target_perm, eps)
+        
+        # average across sources: [batch]
+        si_snr_mean = si_snr.mean(dim=1)
+        losses.append(si_snr_mean)
+    
+    # stack all permutations: [batch, n_perms]
+    losses = torch.stack(losses, dim=1)
+    
+    # take the best (maximum) SI-SNR across permutations
+    best_si_snr, _ = torch.max(losses, dim=1)  # [batch]
+    
+    return best_si_snr

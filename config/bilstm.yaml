@@ -1,0 +1,31 @@
+# BiLSTM source separator configuration: 16kHz, 2 sources
+
+# run-specific parameters
+run:
+  seed: 42
+  device: null # null for auto, otherwise cpu, mps (Apple Silicon) or cuda (GPU)
+
+# model hyperparameters
+model:
+  num_layers: 2     # number of BiLSTM layers
+  hidden_size: 512  # hidden dimension of LSTM
+  dropout: 0.3      # dropout rate
+  n_fft: 1024       # FFT size for STFT
+  hop_length: 256   # hop length for STFT
+
+# training hyperparameters
+training:
+  epochs: 50
+  early_stopping_patience: 10
+  learning_rate: 3e-3
+  weight_decay: 1e-4
+  gradient_clip_norm: 5.0
+  scheduler: cosine   # options: none, step, cosine, reduce_on_plateau
+  scheduler_params:
+    step:
+      step_size: 10
+      gamma: 0.1
+    reduce_on_plateau:
+      factor: 0.5
+      patience: 5
+    cosine: null
