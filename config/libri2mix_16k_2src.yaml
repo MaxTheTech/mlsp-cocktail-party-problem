@@ -4,7 +4,7 @@ dataset:
   sample_rate: 16k  # CONSTANT - SET DURING LIBRIMIX GENERATION
   n_src: 2          # CONSTANT - SET DURING LIBRIMIX GENERATION
   mode: min         # CONSTANT - SET DURING LIBRIMIX GENERATION
-  mixture_type: mix_clean     # Variable: mix_clean or mix_both
+  mixture_type: mix_both     # Variable: mix_clean or mix_both
   segment_length_train: 64000 # null or variable length - set to frequency * sample length in seconds (for example 16000 Hz * 4 seconds = 64000)
   segment_length_val: 64000    # null or variable length
   segment_length_test: null   # null or variable length

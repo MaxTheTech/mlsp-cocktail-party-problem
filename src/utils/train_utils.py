@@ -33,7 +33,7 @@ def get_device(logger, device=None):
     return device
 
 
-def set_device(logger, model, device=None):
+def set_training_device(logger, model, device=None):
     """Move model to device"""
     device = get_device(logger, device)
     model = model.to(device)
@@ -105,9 +105,17 @@ def load_checkpoint(logger, checkpoint_path, model, optimizer=None, device=None)
 
     logger.debug(f"Loaded checkpoint from {checkpoint_path}")
     logger.debug(f"  Epoch: {checkpoint.get('epoch', 'unknown')}")
-    
-    metric_value = checkpoint['best_si_snr']
-    logger.debug(f"  Best SI-SNR: {metric_value:.4f} dB")
+
+    # Handle both best_si_snr (BiLSTM) and best_loss (Conv-TasNet)
+    if 'best_si_snr' in checkpoint:
+        metric_value = checkpoint['best_si_snr']
+        logger.debug(f"  Best SI-SNR: {metric_value:.4f} dB")
+    elif 'best_loss' in checkpoint:
+        metric_value = checkpoint['best_loss']
+        logger.debug(f"  Best loss: {metric_value:.4f}")
+    else:
+        metric_value = None
+        logger.warning("  No best metric found in checkpoint")
 
     start_epoch = checkpoint.get("epoch", 1) + 1
 

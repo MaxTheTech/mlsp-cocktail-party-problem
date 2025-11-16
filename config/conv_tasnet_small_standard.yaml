@@ -1,0 +1,41 @@
+# Conv-TasNet Small Model Configuration: 16kHz, 2 sources
+# ~2M parameters - Fast training for experimentation
+
+# run-specific parameters
+run:
+  seed: 42
+  device: null  # null for auto, otherwise cpu, mps (Apple Silicon) or cuda (GPU)
+
+# model hyperparameters - SMALL MODEL
+model:
+  encoder_channels: 128       # N: number of encoder/decoder channels
+  bottleneck_channels: 128    # B: number of bottleneck channels
+  hidden_channels: 256        # H: number of hidden channels in TCN blocks
+  kernel_size: 16             # L: encoder kernel size
+  tcn_kernel_size: 3          # P: TCN kernel size
+  num_blocks: 6               # X: number of TCN blocks per repeat
+  num_repeats: 2              # R: number of times to repeat TCN blocks
+  stride: 8                   # encoder stride (typically L/2)
+
+# training hyperparameters
+training:
+  epochs: 100
+  learning_rate: 1e-3
+  weight_decay: 0.0
+  gradient_clip_norm: 5.0
+  use_amp: true               # use automatic mixed precision (CUDA only)
+  scheduler: reduce_on_plateau  # options: none, step, cosine, reduce_on_plateau
+  scheduler_params:
+    step:
+      step_size: 10
+      gamma: 0.5
+    cosine: null
+    reduce_on_plateau:
+      factor: 0.5
+      patience: 5
+  save_every: 5               # save checkpoint every N epochs
+  early_stopping_patience: 10 # stop training if no improvement after N epochs
+
+# Model size: ~2M parameters
+# Training time (single A100): ~1-1.5 days for 100 epochs
+# Expected SI-SNR: ~13-14 dB (lower than medium/large but much faster)

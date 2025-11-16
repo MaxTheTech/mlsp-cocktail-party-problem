@@ -1,0 +1,26 @@
+{
+  "model_path": "best_model.pth",
+  "config_data": "libri2mix_16k_2src.yaml",
+  "split": "dev",
+  "num_samples": 3000,
+  "num_sources": 2,
+  "num_batches": 375,
+  "mean_si_snr": [
+    9.32269287109375,
+    9.415623664855957
+  ],
+  "std_si_snr": [
+    3.2652509212493896,
+    3.204699993133545
+  ],
+  "min_si_snr": [
+    -6.912660598754883,
+    -9.722869873046875
+  ],
+  "max_si_snr": [
+    16.771991729736328,
+    17.935832977294922
+  ],
+  "overall_mean_si_snr": 9.369157791137695,
+  "overall_std_si_snr": 3.2351810932159424
+}

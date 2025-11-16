@@ -8,7 +8,11 @@ data/*
 # ignore outputs (figures, logs, models)
 output/figures/*
 output/logs/*
-output/models/*
+output/models/conv_tasnet/*
+outputs/
 
 # ignore archived (deprecated) files
 src/archive
+archive/
+docs/
+.gradio/
