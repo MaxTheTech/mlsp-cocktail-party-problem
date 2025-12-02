@@ -16,7 +16,7 @@ export PYTHONPATH="${PROJECT_ROOT}:${PYTHONPATH}"
 cd "$PROJECT_ROOT"
 
 # Configuration (change this to your model path)
-MODEL_PATH="output/models/dprnn/dprnn_20251107_2175f5/best_model.pth"
+MODEL_PATH="output/models/dprnn/dprnn_20251113_d02712/best_model.pth"
 DEVICE="cuda"  # cuda, mps, or cpu
 PORT=7860
 SHARE=true  # Set to true to create a public share link

@@ -5,6 +5,7 @@ import torchaudio
 import numpy as np
 from pathlib import Path
 import tempfile
+import soundfile as sf
 from src.models.conv_tasnet import ConvTasNet, ConvTasNetMultiScale
 from src.models.dprnn import DPRNNSeparator
 from src.utils.logger import setup_logger
@@ -239,6 +240,27 @@ def create_gradio_interface(model_path, device='cpu'):
     model = load_model(model_path, device, logger)
     logger.info("Model loaded successfully!")
     
+    # Define example audio files (using absolute paths)
+    base_dir = Path(__file__).parent.parent  # Go up from src/ to project root
+    # example_audio_dir = base_dir / "data/Libri2Mix/wav16k/min/test/mix_both"
+    example_audio_files = [
+        "data/Libri2Mix/wav16k/min/test/mix_clean/121-123859-0003_260-123288-0025.wav",
+        "data/Libri2Mix/wav16k/min/test/mix_both/1188-133604-0025_4992-23283-0016.wav",
+        "data/real_test.wav"
+    ]
+    
+    # Function to load audio from file path
+    def load_example_audio(file_path):
+        """Load audio file and return in Gradio format"""
+        if file_path is None or file_path == "":
+            return None
+        try:
+            audio_data, sr = sf.read(file_path)
+            return (sr, audio_data)
+        except Exception as e:
+            logger.error(f"Error loading audio file {file_path}: {e}")
+            return None
+    
     # Define separation function for Gradio
     def separate_fn(audio_input):
         return separate_audio(audio_input, model, device, logger)
@@ -257,7 +279,7 @@ def create_gradio_interface(model_path, device='cpu'):
             - DPRNN (Dual-Path RNN)
             
             **Instructions:**
-            1. Record audio using your microphone OR upload an audio file
+            1. Choose an example audio file from the dropdown OR record audio using your microphone OR upload an audio file
             2. Click "Separate Audio" to process
             3. Listen to the 2 separated sources below
             
@@ -266,6 +288,16 @@ def create_gradio_interface(model_path, device='cpu'):
         
         with gr.Row():
             with gr.Column():
+                example_dropdown = gr.Dropdown(
+                    choices=[
+                        ("Example 0: Clean Test Audio", example_audio_files[0]),
+                        ("Example 1: Noisy Test Audio", example_audio_files[1]),
+                        ("Example 2: Real Test", example_audio_files[2]),
+                    ],
+                    label="📁 Select Example Audio",
+                    value=None,
+                    info="Choose a pre-loaded example audio file"
+                )
                 audio_input = gr.Audio(
                     sources=["microphone", "upload"],
                     type="numpy",
@@ -296,6 +328,13 @@ def create_gradio_interface(model_path, device='cpu'):
             
             The model type is automatically detected from the checkpoint file.
             """
+        )
+        
+        # Connect dropdown to load example audio
+        example_dropdown.change(
+            fn=load_example_audio,
+            inputs=example_dropdown,
+            outputs=audio_input
         )
         
         # Connect button to function
